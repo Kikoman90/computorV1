@@ -6,7 +6,7 @@
 #    By: fsidler <marvin@42.fr>                     +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2019/02/20 16:23:00 by fsidler           #+#    #+#              #
-#    Updated: 2019/02/20 16:59:46 by fsidler          ###   ########.fr        #
+#    Updated: 2019/02/22 16:42:45 by fsidler          ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -39,7 +39,7 @@ opti:
 all:
 	@make $(NAME)
 
-$(NAME): $(OBJS)
+$(NAME): $(OBJ)
 	@$(CLANG) $(FLAGS) $^ -o $@
 	@echo ${Y}[$(NAME)] compilation success${X}
 
