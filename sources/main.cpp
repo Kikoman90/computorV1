@@ -6,44 +6,46 @@
 /*   By: fsidler <fsidler@student.42.fr>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2019/02/20 16:46:30 by fsidler           #+#    #+#             */
-/*   Updated: 2019/02/22 16:45:05 by fsidler          ###   ########.fr       */
+/*   Updated: 2019/02/26 18:01:34 by fsidler          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "Parser.hpp"
 
-/*
-# define A_COL "\033[31m"
-# define B_COL "\033[32m"
-# define C_COL "\033[33m"
-*/
-
-typedef struct	s_polynomial {
-	double		a;
-	double		b;
-	double		c;
-	int			degree;
-}				t_polynomial;
-
 static void	usage(void)
 {
-	std::cout << "Usage: computorV1 [-...] \"equation\"" << std::endl;
-	//show options
+	std::cout << "\n" << CV1_YEL;
+	std::cout << "Usage: ./computorV1 [-s] ((-f <filename>) | <equation>)" << std::endl;
+	std::cout << "options:\n" << "-s : display intermediary steps\n" << "-f <filename> : read input from file\n";
+	std::cout << CV1_DEF;
 }
 
 int		main(int ac, char **av) {
 
-	//Solver	solver();
-	Parser	parser;
 	int		i = 1;
 	bool	show_usage = true;
+	Parser	parser;
 
-	while (i < ac)
-	{
-		//std::cout << av[i] << std::endl;
-		parser.run(av[i]);
-		i++;
+	if (ac < 2) {
+		usage();
+		return (0);
 	}
+	else {
+		while (i < ac) {
+			try {
+				if (parser.run(av[i]))
+					show_usage = false;
+			}
+			catch (std::exception &e) {
+				std::cout << e.what() << std::endl;
+				if (CV1_INTERRUPT)
+					return (-1);
+			}
+			i++;
+		}
+	}
+	if (parser.waiting_for_file())
+		parser.log_error(ERR_MISSING_FILE, "option -f requires an argument", false);
 	if (show_usage)
 		usage();
 	return (0);
