@@ -6,39 +6,30 @@
 /*   By: fsidler <fsidler@student.42.fr>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2019/02/20 16:58:31 by fsidler           #+#    #+#             */
-/*   Updated: 2019/02/26 18:58:05 by fsidler          ###   ########.fr       */
+/*   Updated: 2019/02/27 20:24:58 by fsidler          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "Parser.hpp"
 
+void			Parser::show_map() const {
+	for (auto item : _coefficients)	{
+		std::cout << item.second;
+		if (item.first)
+			std::cout << "X^" << item.first;
+		std::cout << std::endl;
+	}
+}
+
 Parser::Parser() : _solver(_coefficients), _showSteps(false), _inputFromFile(false) {
 
-	// equation regex match -> group 1 | group 12
-	// group 1 -> (2|3|4)[whitespaces]?(5|10)
-	// group 5 -> (6|7)8?
-	_equationRegex =
-		std::regex("(" // 1 : term match (a*X^d) with a = coefficient (constant) and d = degree of the indeterminate X
-						"(?:"
-							"(?:^\\s*([-+]?))|" // 2 : beginning of line (optional sign)
-							"(?:\\s*([-+]))|" // 3 : otherwise, operator is not optional
-							"(?:\\s*[=]\\s*([-+]?))" // 4 : monomial right after '=' sign is optional
-						")"
-						"\\s*" // ignore whitespaces
-						"(?:"
-							"(" // 5 : term with a coefficient (with or without X)
-								"(?:"
-									"(?:"
-										"(?:0+\\B)?"
-										"((?:\\d+)(?:[.]\\d*)?)" // 6 : digits with optional decimals
-									")|"
-									"([.]\\d+)" // 7 : decimal point followed by digits
-								")"
-							"(\\s*[*]?\\s*[xX](?:\\^(?:0+\\B)?(\\d+))?)?)|" // 8 : X part of the term (optional); 9 : the degree (optional)
-						"([xX](?:\\^(?:0+\\B)?(\\d+))?))" // 10 : single X (factor = 1); 11 : the degree (optional)
-					")|(.*)"); // 12 : any other match (=invalid)
+	_equationRegex = std::regex(
+		"((?:(?:^\\s*([-+]?))|(?:\\s*([-+]))|(?:\\s*[=]\\s*([-+]?)))"
+		"\\s*(?:((?:(?:(?:0+\\B)?((?:\\d+)(?:[.]\\d*)?))|([.]\\d+))"
+		"(\\s*[*]?\\s*[xX](?:\\s*\\^\\s*(?:0+\\B)?(\\d+))?)?)|(([xX]"
+		"(?:\\s*\\^\\s*(?:0+\\B)?(\\d+))?)(\\s*[*]\\s*(?:(?:(?:0+\\B)?"
+		"((?:\\d+)(?:[.]\\d*)?))|([.]\\d+)))?)))|(.+)");
 
-	// option regex match -> -f || -s || -sf || -sf
 	_optionRegex = std::regex("\\s*[-](?:(s)|(f))");
 
 }
@@ -65,15 +56,6 @@ void			Parser::log_error(err_type type, std::string msg, bool throw_exception) c
 	else
 		std::cout << log_msg.str() << std::endl;
 
-}
-
-void			Parser::show_map() const {
-	for (auto item : _coefficients)	{
-		std::cout << item.second;
-		if (item.first)
-			std::cout << "X^" << item.first;
-		std::cout << std::endl;
-	}
 }
 
 std::string		Parser::get_file(std::string const filename) {
@@ -122,9 +104,13 @@ void			Parser::new_term(std::string const &cstr, std::string const &dstr, bool r
 	catch (std::exception &e) {
 		log_error(ERR_INV_TERM, e.what());
 	}
+	if (!coefficient)
+		return ;
 	coefficient *= (right_side) ? -1 : 1;
-	if (!_coefficients.insert(std::make_pair(degree, coefficient)).second)
-		_coefficients.at(degree) += coefficient;
+	if (!_coefficients.insert(std::make_pair(degree, coefficient)).second) {
+		if (!(_coefficients.at(degree) += coefficient))
+			_coefficients.erase(_coefficients.find(degree));
+	}
 
 }
 
@@ -145,18 +131,13 @@ bool			Parser::optionMatch(std::string const &str) {
 
 bool			Parser::equationMatch(std::string const &str) {
 
-	bool				complete;
-	std::smatch			match;
-	std::string			coef_str;
-	std::string			deg_str;
-	//std::string const lol = str;
-	//std::string const	arg = str;
-	//size_t				offset = 0;
-
+	bool					complete;
+	std::string				coef_str;
+	std::string				deg_str;
+	std::smatch				match;
 	std::sregex_iterator	sr_begin = std::sregex_iterator(str.begin(), str.end(), _equationRegex);
 	std::sregex_iterator	sr_end = std::sregex_iterator();
 
-	// EGIh erwighuarehjOi;defhwiu abh sdk; gmerdhoi fjweub fgsj giownx,jgoeiwj oierjdo ho
 	complete = false;
 	for (std::sregex_iterator it = sr_begin; it != sr_end; ++it) {
 		match = *it;
@@ -167,7 +148,7 @@ bool			Parser::equationMatch(std::string const &str) {
 				coef_str = match[3].str();
 			else {
 				if (_coefficients.empty())
-					log_error(ERR_MISSING_LEFT_SIDE, "\"" + str + "\"");
+					log_error(ERR_MISSING_LEFT_SIDE, (str.length() > 25) ? "\"" + str.substr(0, 25) + "...\"" : "\"" + str + "\"");
 				coef_str = match[4].str();
 				complete = true;
 			}
@@ -179,54 +160,20 @@ bool			Parser::equationMatch(std::string const &str) {
 					deg_str = "0";
 			}
 			else {
-				coef_str += "1";
-				deg_str = (match[11].matched) ? match[11].str() : "1";
+				deg_str = (match[12].matched) ? match[12].str() : "1";
+				if (match[13].matched)
+					coef_str += (match[14].matched) ? match[14].str() : match[15].str();
+				else
+					coef_str += "1";
 			}
 			new_term(coef_str, deg_str, complete);
 		}
-		else if (match[12].matched)
-			log_error(ERR_UNKNOWN_INPUT, "\"" + match.str() + "\"");
+		else if (match[16].matched)
+			log_error(ERR_UNKNOWN_INPUT, (match.str().length() > 25) ? "\"" + match.str().substr(0, 25) + "...\"" : "\"" + match.str() + "\"");
 	}
 	if (!complete)
-		log_error(ERR_MISSING_RIGHT_SIDE, "\"" + str + "\"");
-	show_map();
+		log_error(ERR_MISSING_RIGHT_SIDE, (str.length() > 25) ? "\"" + str.substr(0, 25) + "...\"" : "\"" + str + "\"");
 	return (true);
-
-	/*
-	// while (!str.empty() && std::regex_search(str, match, _equationRegex)) {
-	while (offset != str.length() && std::regex_search(str.begin() + offset, str.end(), match, _equationRegex)) {
-
-		offset += match.length();
-		if (match[1].matched) {
-			if (match[2].matched)
-				coef_str = match[2].str();
-			else if (match[3].matched)
-				coef_str = match[3].str();
-			else {
-				if (_coefficients.empty())
-					log_error(ERR_MISSING_LEFT_SIDE, "\"" + str + "\"");
-				coef_str = match[4].str();
-				complete = true;
-			}
-			if (match[5].matched) {
-				coef_str += (match[6].matched) ? match[6].str() : match[7].str();
-				if (match[8].matched)
-					deg_str = (match[9].matched) ? match[9].str() : "1";
-				else
-					deg_str = "0";
-			}
-			else {
-				coef_str += "1";
-				deg_str = (match[11].matched) ? match[11].str() : "1";
-			}
-			new_term(coef_str, deg_str, complete);
-		}
-		else if (match[12].matched)
-			log_error(ERR_UNKNOWN_INPUT, "\"" + match.str() + "\"");
-		//str = match.suffix().str();
-		//offset += match.length();
-	}
-	*/
 
 }
 
@@ -240,6 +187,7 @@ bool			Parser::run(char const *input) {
 		_coefficients.clear();
 		equationMatch((_inputFromFile) ? get_file(str) : str);
 		_solver.run(_showSteps);
+		_showSteps = false; //
 		return (true);
 	}
 	return (false);

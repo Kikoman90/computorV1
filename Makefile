@@ -6,7 +6,7 @@
 #    By: fsidler <fsidler@student.42.fr>            +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2019/02/20 16:23:00 by fsidler           #+#    #+#              #
-#    Updated: 2019/02/26 18:49:23 by fsidler          ###   ########.fr        #
+#    Updated: 2019/02/27 16:20:32 by fsidler          ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -14,8 +14,7 @@ NAME = computorV1
 
 CLANG = clang++
 
-# -std=c++11
-FLAGS = -std=c++14 -Wall -Wextra -Werror -MMD
+FLAGS = -std=c++11 -Wall -Wextra -Werror -MMD
 
 INC_DIR = includes
 SRC_DIR = sources
