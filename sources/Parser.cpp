@@ -6,7 +6,7 @@
 /*   By: fsidler <fsidler@student.42.fr>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2019/02/20 16:58:31 by fsidler           #+#    #+#             */
-/*   Updated: 2019/02/27 20:24:58 by fsidler          ###   ########.fr       */
+/*   Updated: 2019/02/28 19:03:00 by fsidler          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -46,7 +46,7 @@ void			Parser::log_error(err_type type, std::string msg, bool throw_exception) c
 		"missing argument"
 	};
 
-	log_msg << '\n' << CV1_ERR << "ERROR:" << CV1_DEF << ' ';
+	log_msg << '\n' << CV1_ERR("ERROR:") << ' ';
 	if (type >= 0 && type <= 5)
 		log_msg << error[type];
 	if (!msg.empty())
@@ -66,13 +66,13 @@ std::string		Parser::get_file(std::string const filename) {
 	_inputFromFile = false;
 	if (stat(filename.c_str(), &s) == 0) {
 		if (!(s.st_mode & S_IFREG))
-			log_error(ERR_FILE, CV1_UDL + filename + CV1_DEF + ": argument is not a file");
+			log_error(ERR_FILE, CV1_UDL(filename) + " : argument is not a file");
 	}   
 	else
-		log_error(ERR_FILE, CV1_UDL + filename + CV1_DEF + ": " + strerror(errno));
+		log_error(ERR_FILE, CV1_UDL(filename) + " : " + strerror(errno));
 	_filestream.open(filename, std::ifstream::in);
 	if (!_filestream)
-		log_error(ERR_FILE, CV1_UDL + filename + CV1_DEF + ": file does not exist or could not be opened");
+		log_error(ERR_FILE, CV1_UDL(filename) + " : file does not exist or could not be opened");
 	strs << _filestream.rdbuf();
 	_filestream.close();
 	return (strs.str());
@@ -131,26 +131,30 @@ bool			Parser::optionMatch(std::string const &str) {
 
 bool			Parser::equationMatch(std::string const &str) {
 
-	bool					complete;
+	bool					left_complete;
+	bool					right_complete;
 	std::string				coef_str;
 	std::string				deg_str;
 	std::smatch				match;
 	std::sregex_iterator	sr_begin = std::sregex_iterator(str.begin(), str.end(), _equationRegex);
 	std::sregex_iterator	sr_end = std::sregex_iterator();
 
-	complete = false;
+	left_complete = false;
+	right_complete = false;
 	for (std::sregex_iterator it = sr_begin; it != sr_end; ++it) {
 		match = *it;
 		if (match[1].matched) {
-			if (match[2].matched)
+			if (match[2].matched) {
+				left_complete = true;
 				coef_str = match[2].str();
+			}
 			else if (match[3].matched)
 				coef_str = match[3].str();
 			else {
-				if (_coefficients.empty())
-					log_error(ERR_MISSING_LEFT_SIDE, (str.length() > 25) ? "\"" + str.substr(0, 25) + "...\"" : "\"" + str + "\"");
+				if (!left_complete)
+					log_error(ERR_MISSING_LEFT_SIDE, CV1_UDL(((str.length() > 25) ? "\"" + str.substr(0, 25) + "...\"" : "\"" + str + "\"")));
 				coef_str = match[4].str();
-				complete = true;
+				right_complete = true;
 			}
 			if (match[5].matched) {
 				coef_str += (match[6].matched) ? match[6].str() : match[7].str();
@@ -166,13 +170,13 @@ bool			Parser::equationMatch(std::string const &str) {
 				else
 					coef_str += "1";
 			}
-			new_term(coef_str, deg_str, complete);
+			new_term(coef_str, deg_str, right_complete);
 		}
 		else if (match[16].matched)
-			log_error(ERR_UNKNOWN_INPUT, (match.str().length() > 25) ? "\"" + match.str().substr(0, 25) + "...\"" : "\"" + match.str() + "\"");
+			log_error(ERR_UNKNOWN_INPUT, CV1_UDL(((match.str().length() > 25) ? "\"" + match.str().substr(0, 25) + "...\"" : "\"" + match.str() + "\"")));
 	}
-	if (!complete)
-		log_error(ERR_MISSING_RIGHT_SIDE, (str.length() > 25) ? "\"" + str.substr(0, 25) + "...\"" : "\"" + str + "\"");
+	if (!right_complete)
+		log_error(ERR_MISSING_RIGHT_SIDE, CV1_UDL(((str.length() > 25) ? "\"" + str.substr(0, 25) + "...\"" : "\"" + str + "\"")));
 	return (true);
 
 }
@@ -185,9 +189,13 @@ bool			Parser::run(char const *input) {
 		return (false);
 	else {
 		_coefficients.clear();
-		equationMatch((_inputFromFile) ? get_file(str) : str);
+		if (_inputFromFile)
+			str = get_file(str);
+		str.erase(std::remove(str.begin(), str.end(), '\n'), str.end());
+		equationMatch(str);
+		std::cout << std::endl << CV1_EQ(((str.length() > 60) ? "\"" + str.substr(0, 60) + "...\"" : "\"" + str + "\"")) << std::endl;
 		_solver.run(_showSteps);
-		_showSteps = false; //
+		_showSteps = false;
 		return (true);
 	}
 	return (false);
