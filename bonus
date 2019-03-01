@@ -1,51 +1,48 @@
-bonus computorv1:
-* error handling, parsing des puissances superieures a 2 [ONIT]
-* -f : file option (comments like abstractVM ?). pratique pour montrer des tests [TODO]
-* -i : irreducible fraction -> more parsing [TODO] -> TOO MUCH WORK FUCK THIS BONUS
-* -s : display steps -> forme reduite, en indiquant les coef avec des couleurs. ensuite calcul du discriminant et des racines. afficher aussi la reduction avec des couleurs sur les termes ?
+BONUS:
+
 * forme naturelle [YES] -> attention: bonus hors du slider 5/5
-* mlx graph ?
 
-MLX GRAPH -> 1 or 2 points
-ERROR HANDLING/PARSING -> 1 point
-FILE OPTION -> 1 point
-STEP OPTION -> 1 point
-
+* ERROR HANDLING/PARSING -> 1 point
+* FILE OPTION -> 1 point
+* STEP OPTION -> 1 point
+* IRREDUCIBLE FRACTIONS -> 1 point
+* COLORS -> 1 point
+* INTERRUPT / MULTIPLE ARGUMENTS / ...
 
 // equation regex match -> group 1 | group 12
-	// group 1 -> ((2)|(3)|(4))[whitespaces]?((5)|(10))
-	// group 5 -> ((6)|(7))(8(9)?)?
-	// group 10 -> ((11)(12)?)([*]((13)|(14)))?
-	_equationRegex =
-		std::regex("(" // 1 : term match (a*X^d) with a = coefficient (constant) and d = degree of the indeterminate X
-						"(?:"
-							"(?:^\\s*([-+]?))|" // 2 : beginning of line (optional sign)
-							"(?:\\s*([-+]))|" // 3 : otherwise, operator is not optional
-							"(?:\\s*[=]\\s*([-+]?))" // 4 : monomial right after '=' sign is optional
-						")"
-						"\\s*" // ignore whitespaces
-						"(?:"
-							"(" // 5 : coefficient followed by optional x
+// group 1 -> ((2)|(3)|(4))[whitespaces]?((5)|(10))
+// group 5 -> ((6)|(7))(8(9)?)?
+// group 10 -> ((11)(12)?)([*]((13)|(14)))?
+_equationRegex =
+	std::regex("(" // 1 : term match (a*X^d) with a = coefficient (constant) and d = degree of the indeterminate X
+					"(?:"
+						"(?:^\\s*([-+]?))|" // 2 : beginning of line (optional sign)
+						"(?:\\s*([-+]))|" // 3 : otherwise, operator is not optional
+						"(?:\\s*[=]\\s*([-+]?))" // 4 : monomial right after '=' sign is optional
+					")"
+					"\\s*" // ignore whitespaces
+					"(?:"
+						"(" // 5 : coefficient followed by optional x
+							"(?:"
+								"(?:"
+									"(?:0+\\B)?"
+									"((?:\\d+)(?:[.]\\d*)?)" // 6 : digits with optional decimals
+								")|([.]\\d+)" // 7 : decimal point followed by digits
+							")"
+							"(\\s*[*]?\\s*[xX](?:\\s*\\^\\s*(?:0+\\B)?(\\d+))?)?"  // 8 : X part of the term (optional); 9 : the degree (optional)
+						")|(" // 10: x followed by optional coefficient
+							"([xX](?:\\s*\\^\\s*(?:0+\\B)?(\\d+))?)"  // 11 : X part of the term; 12 : the degree (optional)
+							"(\\s*[*]\\s*" // 13 : coefficient part of the term (optional)
 								"(?:"
 									"(?:"
 										"(?:0+\\B)?"
-										"((?:\\d+)(?:[.]\\d*)?)" // 6 : digits with optional decimals
-									")|([.]\\d+)" // 7 : decimal point followed by digits
+										"((?:\\d+)(?:[.]\\d*)?)" // 14 : digits with optional decimals
+									")|([.]\\d+)" // 15 : decimal point followed by digits
 								")"
-								"(\\s*[*]?\\s*[xX](?:\\s*\\^\\s*(?:0+\\B)?(\\d+))?)?"  // 8 : X part of the term (optional); 9 : the degree (optional)
-							")|(" // 10: x followed by optional coefficient
-								"([xX](?:\\s*\\^\\s*(?:0+\\B)?(\\d+))?)"  // 11 : X part of the term; 12 : the degree (optional)
-								"(\\s*[*]\\s*" // 13 : coefficient part of the term (optional)
-									"(?:"
-										"(?:"
-											"(?:0+\\B)?"
-											"((?:\\d+)(?:[.]\\d*)?)" // 14 : digits with optional decimals
-										")|([.]\\d+)" // 15 : decimal point followed by digits
-									")"
-								")?"
-							")"
+							")?"
 						")"
-					")|(.+)"); // 16 : any other match (=invalid)
+					")"
+				")|(.+)"); // 16 : any other match (=invalid)
 
-	// option regex match -> -f || -s || -sf || -sf
-	_optionRegex = std::regex("\\s*[-](?:(s)|(f))");
+// option regex match -> -f || -s || -sf || -sf
+_optionRegex = std::regex("\\s*[-](?:(s)|(f))");
