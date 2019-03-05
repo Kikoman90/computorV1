@@ -8,6 +8,8 @@ BONUS:
 * IRREDUCIBLE FRACTIONS -> 1 point
 * COLORS -> 1 point
 * INTERRUPT / MULTIPLE ARGUMENTS / ...
+* SWITCH FP TO DBL
+* 
 
 // equation regex match -> group 1 | group 12
 // group 1 -> ((2)|(3)|(4))[whitespaces]?((5)|(10))

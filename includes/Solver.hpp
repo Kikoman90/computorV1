@@ -6,7 +6,7 @@
 /*   By: fsidler <fsidler@student.42.fr>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2019/02/26 12:12:07 by fsidler           #+#    #+#             */
-/*   Updated: 2019/03/01 19:22:10 by fsidler          ###   ########.fr       */
+/*   Updated: 2019/03/05 19:56:01 by fsidler          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -18,6 +18,9 @@
 # include <vector>
 # include <map>
 # include <cmath>
+# include <cfenv>
+
+# define CV1_EPSILON 0.0000000000001
 
 // exit program upon first error
 # define CV1_INTERRUPT false
@@ -80,6 +83,7 @@ private:
     void    print_poly_info(bool showSteps, polynomial const poly, unsigned int const poly_degree) const;
 
     bool    displayable_as_fraction(double &numerator, double &denominator) const;
+    void    fraction_display(std::stringstream &strs, double numerator, double denominator) const;
 
     void    case_zero(bool showSteps, polynomial &poly) const;
     void    case_positive(bool showSteps, polynomial &poly) const;

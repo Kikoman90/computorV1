@@ -6,7 +6,7 @@
 /*   By: fsidler <fsidler@student.42.fr>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2019/02/26 13:10:15 by fsidler           #+#    #+#             */
-/*   Updated: 2019/03/01 19:33:50 by fsidler          ###   ########.fr       */
+/*   Updated: 2019/03/05 20:12:30 by fsidler          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -103,21 +103,74 @@ void    Solver::print_poly_info(bool showSteps, polynomial const poly, unsigned 
 
 }
 
+double	ft_fabs(double n) {
+
+	int64_t	casted;
+
+	casted = *reinterpret_cast<int64_t*>(&n);
+	casted &= 0x7FFFFFFFFFFFFFFF;
+	return (*reinterpret_cast<double*>(&casted));
+
+}
+
+double  ft_modf(double value, double *iptr = NULL) {
+
+    int     save_round;
+    double  int_part;
+    
+    save_round = std::fegetround();
+    std::fesetround(FE_TOWARDZERO);
+    int_part = std::nearbyint(value);
+    std::fesetround(save_round);
+    if (iptr)
+        *iptr = int_part;
+    return (value - int_part);
+
+}
+
+double	ft_fmod(double n1, double n2) {
+
+    double  trunc_div;
+
+    ft_modf(n1 / n2, &trunc_div); // -> std::modf(n1 / n2, &trunc_div);
+    return (n1 - trunc_div * n2);
+
+}
+
+double  ft_sqrt(double n) {
+
+    double  last, current;
+    double  precision = 0.000001;
+    
+    last = n / 2;
+    while (true) {
+        current = (last + n / last) * 0.5;
+        if (ft_fabs(current - last) < precision)
+            return (current);
+        last = current;
+    }
+    return (current);
+
+}
+
 double  highest_common_factor(double d1, double d2) {
 
     if (d2 == 0)
         return (d1);
-    return (highest_common_factor(d2, std::fmod(d1, d2)));
+    return (highest_common_factor(d2, ft_fmod(d1, d2))); // before -> std::fmod(d1, d2);
 
 }
 
 bool    Solver::displayable_as_fraction(double &numerator, double &denominator) const {
 
-    double  integer_part;
+    double  num_int, den_int;
     double  hcf;
 
-    if (std::modf(numerator, &integer_part) || std::modf(denominator, &integer_part))
+    if ((ft_modf(numerator, &num_int) >= CV1_EPSILON) ||\
+        (ft_modf(denominator, &den_int) >= CV1_EPSILON)) // before -> std::modf(...)
         return (false);
+    numerator = num_int;
+    denominator = den_int;
     hcf = highest_common_factor(numerator, denominator);
     numerator /= hcf;
     denominator /= hcf;
@@ -125,75 +178,46 @@ bool    Solver::displayable_as_fraction(double &numerator, double &denominator) 
 
 }
 
-void    Solver::solve_linear(polynomial &poly) const {
-    
-    double              num;
-    double              den;
-    std::stringstream   strs;
+void    Solver::fraction_display(std::stringstream &strs, double numerator, double denominator) const {
 
-    if (poly.c == 0)
-        strs << '0';
-    else if (CV1_FRACTIONS) {
-		num = std::fabs(poly.c);
-        den = std::fabs(poly.b);
-        if (displayable_as_fraction(num, den)) {
-			if ((poly.c > 0 && poly.b > 0) || (poly.c < 0 && poly.b < 0))
-                strs << '-';
-			(den == 1) ? strs << num : strs << num << '/' << den;
-        }
-        else
-            strs << -poly.c / poly.b;
+    double  num, den;
+    bool    negative;
+    
+    num = ft_fabs(numerator);
+    den = ft_fabs(denominator);
+    negative = ((numerator < 0 && denominator > 0) || (numerator > 0 && denominator < 0));
+    if (displayable_as_fraction(num, den)) {
+        if (negative)
+            strs << '-';
+        (den == 1) ? strs << num : strs << num << '/' << den;
     }
     else
-		strs << -poly.c / poly.b;
+        strs << numerator / denominator;
+    
+}
+
+void    Solver::solve_linear(polynomial &poly) const {
+    
+    std::stringstream   strs;
+    double              num, den;
+
+    num = -poly.c;
+    den = poly.b;
+    if (ft_fabs(num) <= CV1_EPSILON)
+        strs << '0';
+    else if (CV1_FRACTIONS)
+        fraction_display(strs, num, den);
+    else
+		strs << num / den;
 
     std::cout << "  * The real " << CV1_COLS(strs.str()) << " is solution to the equation" << std::endl;
 
 }
 
-// math functions: ft_fabs(double), ft_fmod(double, double), ft_modf(numerator), sqrt(double)
-
-// { return ((n < 0) ? -n : n); }
-double	ft_fabs(double n) {
-	int64_t	casted;
-
-	casted = reinterpret_cast<int64_t>(n);
-	casted &= 0x7FFFFFFFFFFFFFFF;
-	return (reinterpret_cast<double>(casted));
-}
-
-double	ft_modf(double value, int int_ptr) {
-
-}
-
-double	ft_fmod(double n1, double n2) {
-	n1 % n2;
-
-}
-
-double	sqrt(double n) { return (n); };
-
 void    Solver::case_zero(bool showSteps, polynomial &poly) const {
 
-    double              num;
-    double              den;
     std::stringstream   strs;
-
-    if (poly.b == 0)
-        strs << '0';
-    else if (CV1_FRACTIONS) {
-		num = std::fabs(poly.b);
-		den = std::fabs(2 * poly.a);
-		if (displayable_as_fraction(num, den)) {
-			if ((poly.b > 0 && poly.a > 0) || (poly.b < 0 && poly.a < 0))
-				strs << '-';
-			(den == 1) ? strs << num : strs << num << '/' << den;
-		}
-		else
-			strs << -poly.b / (2 * poly.a);
-	}
-	else
-		strs << -poly.b / (2 * poly.a);
+    double              num, den;
 
     if (showSteps) {
         std::cout << "  * Let " << CV1_COLS('r') << " be the solution :\n";
@@ -202,14 +226,51 @@ void    Solver::case_zero(bool showSteps, polynomial &poly) const {
         std::cout << "  *   " << CV1_COLS("= " << strs.str()) << std::endl;
     }
 
+    num = -poly.b;
+    den = 2 * poly.a;
+    if (ft_fabs(num) <= CV1_EPSILON)
+        strs << '0';
+    else if (CV1_FRACTIONS)
+		fraction_display(strs, num, den);
+	else
+		strs << num / den;
+
     std::cout << "  * The equation has one real solution : " << CV1_COLS(strs.str()) << std::endl;
 
 }
 
 void    Solver::case_positive(bool showSteps, polynomial &poly) const {
 
-    (void)showSteps;
-    (void)poly;
+    std::stringstream   strs;
+    double              sqrtDelta;
+    double              num, den;
+
+    if (showSteps) {
+        std::cout << CV1_ERR("  * need to show steps lol\n");
+    }
+
+    sqrtDelta = ft_sqrt(poly.delta);
+    num = -poly.b + sqrtDelta;
+    den = 2 * poly.a;
+    if (ft_fabs(num) <= CV1_EPSILON)
+        strs << '0';
+    else if (CV1_FRACTIONS)
+        fraction_display(strs, num, den);
+    else
+        strs << num / den;
+
+    std::cout << "  * The equation has two real solutions : " << CV1_COLS(strs.str()) << " and ";
+    strs.str("");
+
+    num = -poly.b - sqrtDelta;
+    if (ft_fabs(num) <= CV1_EPSILON)
+        strs << '0';
+    else if (CV1_FRACTIONS)
+        fraction_display(strs, num, den);
+    else
+        strs << num / den;
+
+    std::cout << CV1_COLS(strs.str()) << std::endl;
 
 }
 
