@@ -133,24 +133,45 @@ void    Solver::solve_linear(polynomial &poly) const {
 
     if (poly.c == 0)
         strs << '0';
-    else {
-        if (CV1_FRACTIONS) {
-            num = std::fabs(poly.c);
-            den = std::fabs(poly.b);
-            if (displayable_as_fraction(num, den)) {
-                if ((poly.c > 0 && poly.b > 0) || (poly.c < 0 && poly.b < 0))
-                    strs << '-';
-                (den == 1) ? strs << num : strs << num << '/' << den;
-            }
-            else
-                strs << -poly.c / poly.b;
+    else if (CV1_FRACTIONS) {
+		num = std::fabs(poly.c);
+        den = std::fabs(poly.b);
+        if (displayable_as_fraction(num, den)) {
+			if ((poly.c > 0 && poly.b > 0) || (poly.c < 0 && poly.b < 0))
+                strs << '-';
+			(den == 1) ? strs << num : strs << num << '/' << den;
         }
         else
             strs << -poly.c / poly.b;
     }
+    else
+		strs << -poly.c / poly.b;
+
     std::cout << "  * The real " << CV1_COLS(strs.str()) << " is solution to the equation" << std::endl;
 
 }
+
+// math functions: ft_fabs(double), ft_fmod(double, double), ft_modf(numerator), sqrt(double)
+
+// { return ((n < 0) ? -n : n); }
+double	ft_fabs(double n) {
+	int64_t	casted;
+
+	casted = reinterpret_cast<int64_t>(n);
+	casted &= 0x7FFFFFFFFFFFFFFF;
+	return (reinterpret_cast<double>(casted));
+}
+
+double	ft_modf(double value, int int_ptr) {
+
+}
+
+double	ft_fmod(double n1, double n2) {
+	n1 % n2;
+
+}
+
+double	sqrt(double n) { return (n); };
 
 void    Solver::case_zero(bool showSteps, polynomial &poly) const {
 
@@ -160,11 +181,19 @@ void    Solver::case_zero(bool showSteps, polynomial &poly) const {
 
     if (poly.b == 0)
         strs << '0';
-    else {
-        (void)num;
-        (void)den;
-        ;// blabla fraction irreductible... ou pas.
-    }
+    else if (CV1_FRACTIONS) {
+		num = std::fabs(poly.b);
+		den = std::fabs(2 * poly.a);
+		if (displayable_as_fraction(num, den)) {
+			if ((poly.b > 0 && poly.a > 0) || (poly.b < 0 && poly.a < 0))
+				strs << '-';
+			(den == 1) ? strs << num : strs << num << '/' << den;
+		}
+		else
+			strs << -poly.b / (2 * poly.a);
+	}
+	else
+		strs << -poly.b / (2 * poly.a);
 
     if (showSteps) {
         std::cout << "  * Let " << CV1_COLS('r') << " be the solution :\n";

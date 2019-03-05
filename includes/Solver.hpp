@@ -28,6 +28,12 @@
 // display results as irreducible fractions if possible
 # define CV1_FRACTIONS true
 
+// use 32 bits floating point numbers : CV1_USE_FP
+// use doubles. 64 bits FP numbers : CV1_USE_DBL
+# define CV1_USE_FP 0x1
+# define CV1_USE_DBL 0x2
+# define CV1_MODE CV1_USE_DBL
+
 # define CV1_DEF "\033[0m"
 # define CV1_GRE "\033[32m"
 # define CV1_YEL "\033[33m"
