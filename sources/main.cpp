@@ -6,7 +6,7 @@
 /*   By: fsidler <fsidler@student.42.fr>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2019/02/20 16:46:30 by fsidler           #+#    #+#             */
-/*   Updated: 2019/02/27 20:24:23 by fsidler          ###   ########.fr       */
+/*   Updated: 2019/03/07 19:03:20 by fsidler          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -52,5 +52,3 @@ int		main(int ac, char **av) {
 		usage();
 	return (0);
 }
-
-// tester plusieurs arguments av... etc.

@@ -6,7 +6,7 @@
 /*   By: fsidler <fsidler@student.42.fr>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2019/02/26 13:10:15 by fsidler           #+#    #+#             */
-/*   Updated: 2019/03/05 20:12:30 by fsidler          ###   ########.fr       */
+/*   Updated: 2019/03/07 19:01:32 by fsidler          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -86,6 +86,7 @@ void    Solver::print_poly_info(bool showSteps, polynomial const poly, unsigned 
     };
 
     if (showSteps && (poly_degree == 1 || poly_degree == 2)) {
+        std::cout << "  *\n";
         std::cout << "  * The polynomial equation of degree " << poly_degree << poly_names[poly_degree] << " is of the form : ";
         if (poly_degree == 2)
             std::cout << CV1_COLA('a') << "x^2 + ";
@@ -113,38 +114,62 @@ double	ft_fabs(double n) {
 
 }
 
+// behaviour is identical to that of std::modf(double, double*)
 double  ft_modf(double value, double *iptr = NULL) {
 
-    int     save_round;
-    double  int_part;
-    
-    save_round = std::fegetround();
-    std::fesetround(FE_TOWARDZERO);
-    int_part = std::nearbyint(value);
-    std::fesetround(save_round);
-    if (iptr)
-        *iptr = int_part;
-    return (value - int_part);
+	struct cv1_f64  *f64ptr;
+	int             exponent;
+	int             mask_bits;
+	double          tmp;
+
+	f64ptr = reinterpret_cast<struct cv1_f64*>(&value);
+	exponent = (f64ptr->high32 >> CV1_F64_EXP_SHIFT) & CV1_F64_EXP_MASK;
+	exponent -= CV1_F64_EXP_BIAS;
+	if (exponent < 0) { // the value has no integral part (decimal digits only)
+		*iptr = 0;
+		return (value);
+	}
+	mask_bits = 52 - exponent;
+	if (mask_bits <= 0) { // all mantissa bits will be raised to an integral value by the exponent (no decimal digits)
+		*iptr = value;
+		return (0);
+	}
+	tmp = value;
+	if (mask_bits >= 32) { // low32 will be decimal, we are only concerned with the first 20 bits of the mantissa
+		f64ptr->low32 = 0;
+		mask_bits -= 32;
+		f64ptr->high32 &= ~((1 << mask_bits) - 1); // the mantissa bits that will be decimal are set to 0
+	}
+	else
+		f64ptr->low32 &= ~((1 << mask_bits) - 1); // the mantissa bits that will be decimal are set to 0
+	*iptr = value;
+	return (tmp - value);
 
 }
 
+// modulo for doubles
 double	ft_fmod(double n1, double n2) {
 
     double  trunc_div;
 
-    ft_modf(n1 / n2, &trunc_div); // -> std::modf(n1 / n2, &trunc_div);
+    ft_modf(n1 / n2, &trunc_div);
     return (n1 - trunc_div * n2);
 
 }
 
+// finding sqrt(S) is the same as solving f(x) = x^2 - S = 0.
+// we use newton's method for finding the root of this equation:
+// x[n+1] = x[n] - f(x[n]) / f'(x[n]) = x[n] - (x[n] - S / 2x[n])
+//        = 0.5 * (x[n] + S / x[n])
+// as we iterate, x converges towards the root
 double  ft_sqrt(double n) {
 
     double  last, current;
     double  precision = 0.000001;
-    
+
     last = n / 2;
     while (true) {
-        current = (last + n / last) * 0.5;
+        current = 0.5 * (last + n / last);
         if (ft_fabs(current - last) < precision)
             return (current);
         last = current;
@@ -157,7 +182,7 @@ double  highest_common_factor(double d1, double d2) {
 
     if (d2 == 0)
         return (d1);
-    return (highest_common_factor(d2, ft_fmod(d1, d2))); // before -> std::fmod(d1, d2);
+    return (highest_common_factor(d2, ft_fmod(d1, d2)));
 
 }
 
@@ -166,8 +191,9 @@ bool    Solver::displayable_as_fraction(double &numerator, double &denominator) 
     double  num_int, den_int;
     double  hcf;
 
-    if ((ft_modf(numerator, &num_int) >= CV1_EPSILON) ||\
-        (ft_modf(denominator, &den_int) >= CV1_EPSILON)) // before -> std::modf(...)
+    //if (ft_modf(numerator, &num_int) || ft_modf(denominator, &den_int))
+    if (ft_modf(numerator, &num_int) >= CV1_EPSILON ||\
+        ft_modf(denominator, &den_int) >= CV1_EPSILON)
         return (false);
     numerator = num_int;
     denominator = den_int;
@@ -178,7 +204,7 @@ bool    Solver::displayable_as_fraction(double &numerator, double &denominator) 
 
 }
 
-void    Solver::fraction_display(std::stringstream &strs, double numerator, double denominator) const {
+void    Solver::fraction_display(std::stringstream &strs, double numerator, double denominator, bool space) const {
 
     double  num, den;
     bool    negative;
@@ -188,15 +214,23 @@ void    Solver::fraction_display(std::stringstream &strs, double numerator, doub
     negative = ((numerator < 0 && denominator > 0) || (numerator > 0 && denominator < 0));
     if (displayable_as_fraction(num, den)) {
         if (negative)
-            strs << '-';
+            strs << ((space) ? " - " : "-");
+        else if (space)
+            strs << " + ";
         (den == 1) ? strs << num : strs << num << '/' << den;
     }
-    else
-        strs << numerator / denominator;
+    else {
+        if (space) {
+            strs << ((negative) ? " - " : " + ");
+            strs << num / den;
+        }
+        else
+            strs << numerator / denominator;
+    }
     
 }
 
-void    Solver::solve_linear(polynomial &poly) const {
+void    Solver::solve_linear(bool showSteps, polynomial &poly) const {
     
     std::stringstream   strs;
     double              num, den;
@@ -210,6 +244,8 @@ void    Solver::solve_linear(polynomial &poly) const {
     else
 		strs << num / den;
 
+    if (showSteps)
+        std::cout << "  *\n";
     std::cout << "  * The real " << CV1_COLS(strs.str()) << " is solution to the equation" << std::endl;
 
 }
@@ -219,21 +255,26 @@ void    Solver::case_zero(bool showSteps, polynomial &poly) const {
     std::stringstream   strs;
     double              num, den;
 
-    if (showSteps) {
-        std::cout << "  * Let " << CV1_COLS('r') << " be the solution :\n";
-        std::cout << "  * " << CV1_COLS('r') << " = -" << CV1_COLB('b') << "/2" << CV1_COLA('a') << std::endl;
-        std::cout << "  *   = -(" << CV1_COLB(poly.b) << ")/2*" << CV1_COLA(poly.a) << std::endl;
-        std::cout << "  *   " << CV1_COLS("= " << strs.str()) << std::endl;
-    }
-
     num = -poly.b;
     den = 2 * poly.a;
-    if (ft_fabs(num) <= CV1_EPSILON)
+    if (ft_fabs(num) <= CV1_EPSILON) {
+        num = 0;
         strs << '0';
+    }
     else if (CV1_FRACTIONS)
 		fraction_display(strs, num, den);
 	else
 		strs << num / den;
+
+    if (showSteps) {
+        std::cout << "  *\n";
+        std::cout << "  * Let " << CV1_COLS('r') << " be the solution :\n";
+        std::cout << "  * " << CV1_COLS('r') << " = -" << CV1_COLB('b') << " / 2" << CV1_COLA('a') << std::endl;
+        std::cout << "  *   = -(" << CV1_COLB(poly.b) << ") / 2 * " << CV1_COLA(poly.a) << std::endl;
+        std::cout << "  *   = " << num << " / " << den << std::endl;
+        std::cout << "  *   " << CV1_COLS("= " << strs.str()) << std::endl;
+        std::cout << "  *\n";
+    }
 
     std::cout << "  * The equation has one real solution : " << CV1_COLS(strs.str()) << std::endl;
 
@@ -241,54 +282,134 @@ void    Solver::case_zero(bool showSteps, polynomial &poly) const {
 
 void    Solver::case_positive(bool showSteps, polynomial &poly) const {
 
-    std::stringstream   strs;
+    std::stringstream   strs1, strs2;
     double              sqrtDelta;
     double              num, den;
 
+    sqrtDelta = ft_sqrt(poly.delta);
+    num = -poly.b - sqrtDelta;
+    den = 2 * poly.a;
+    if (ft_fabs(num) <= CV1_EPSILON) {
+        num = 0;
+        strs1 << '0';
+    }
+    else if (CV1_FRACTIONS)
+        fraction_display(strs1, num, den);
+    else
+        strs1 << num / den;
+
     if (showSteps) {
-        std::cout << CV1_ERR("  * need to show steps lol\n");
+        std::cout << "  *\n";
+        std::cout << "  * Let " << CV1_COLS("r1") << " and " << CV1_COLS("r2") << " be the solutions :\n";
+        std::cout << "  * " << CV1_COLS("r1") << " = (-" << CV1_COLB('b') << " - sqrt(" << CV1_COLD('D') << ")) / 2" << CV1_COLA('a') << std::endl;
+        std::cout << "  *    = (-(" << CV1_COLB(poly.b) << ") - sqrt(" << CV1_COLD(poly.delta) << ")) / 2 * " << CV1_COLA(poly.a) << std::endl;
+        std::cout << "  *    = (" << -poly.b << " - " << sqrtDelta << ") / " << den << std::endl;
+        std::cout << "  *    = " << num << " / " << den << std::endl;
+        std::cout << "  *    " << CV1_COLS("= " << strs1.str()) << std::endl;
     }
 
-    sqrtDelta = ft_sqrt(poly.delta);
     num = -poly.b + sqrtDelta;
-    den = 2 * poly.a;
-    if (ft_fabs(num) <= CV1_EPSILON)
-        strs << '0';
+    if (ft_fabs(num) <= CV1_EPSILON) {
+        num = 0;
+        strs2 << '0';
+    }
     else if (CV1_FRACTIONS)
-        fraction_display(strs, num, den);
+        fraction_display(strs2, num, den);
     else
-        strs << num / den;
+        strs2 << num / den;
 
-    std::cout << "  * The equation has two real solutions : " << CV1_COLS(strs.str()) << " and ";
-    strs.str("");
+    if (showSteps) {
+        std::cout << "  * " << CV1_COLS("r2") << " = (-" << CV1_COLB('b') << " + sqrt(" << CV1_COLD('D') << ")) / 2" << CV1_COLA('a') << std::endl;
+        std::cout << "  *    = (-(" << CV1_COLB(poly.b) << ") + sqrt(" << CV1_COLD(poly.delta) << ")) / 2 * " << CV1_COLA(poly.a) << std::endl;
+        std::cout << "  *    = (" << -poly.b << " + " << sqrtDelta << ") / " << den << std::endl;
+        std::cout << "  *    = " << num << " / " << den << std::endl;
+        std::cout << "  *    " << CV1_COLS("= " << strs2.str()) << std::endl;
+        std::cout << "  *\n";
+    }
 
-    num = -poly.b - sqrtDelta;
-    if (ft_fabs(num) <= CV1_EPSILON)
-        strs << '0';
-    else if (CV1_FRACTIONS)
-        fraction_display(strs, num, den);
-    else
-        strs << num / den;
-
-    std::cout << CV1_COLS(strs.str()) << std::endl;
+    std::cout << "  * The equation has two real solutions : " << CV1_COLS(strs1.str()) << " and " << CV1_COLS(strs2.str()) << std::endl;
 
 }
 
 void    Solver::case_negative(bool showSteps, polynomial &poly) const {
 
-    (void)showSteps;
-    (void)poly;
+    std::stringstream   strs1, strs2;
+    double              num_r, num_i, den;
+    double              res_i;
+    bool                r_exists = true;
+
+    num_r = -poly.b;
+    num_i = ft_sqrt(ft_fabs(poly.delta));
+    den = 2 * poly.a;
+    if (ft_fabs(num_r) <= CV1_EPSILON) {
+        num_r = 0;
+        r_exists = false;
+    }
+    else {
+        if (CV1_FRACTIONS)
+            fraction_display(strs1, num_r, den);
+        else
+            strs1 << num_r / den;
+        strs2 << strs1.str(); // same real part for both solutions;
+    }
+
+    if (CV1_FRACTIONS) {
+        fraction_display(strs1, -num_i, den, r_exists);
+        fraction_display(strs2, num_i, den, r_exists);
+    } else {
+        res_i = -num_i / den;
+        if (r_exists) {
+            if (res_i < 0) {
+                strs1 << " - " << -res_i;
+                strs2 << " + " << -res_i;
+            }
+            else {
+                strs1 << " + " << res_i;
+                strs2 << " - " << res_i;
+            }
+        }
+        else {
+            strs1 << res_i;
+            strs2 << -res_i;
+        }
+    }
+    strs1 << " * i";
+    strs2 << " * i";
+
+    if (showSteps) {
+        std::cout << "  *\n";
+        std::cout << "  * Let " << CV1_COLS("r1") << " and " << CV1_COLS("r2") << " be the solutions :\n";
+        std::cout << "  * " << CV1_COLS("r1") << " = (-" << CV1_COLB('b') << " - sqrt(" << CV1_COLD('D') << ")) / 2" << CV1_COLA('a') << std::endl;
+        std::cout << "  *    = (-" << CV1_COLB('b') << " - sqrt(-" << CV1_COLD('D') << " * i^2)) / 2" << CV1_COLA('a') << std::endl;
+        std::cout << "  *    = -" << CV1_COLB('b') << " / 2" << CV1_COLA('a') << " - i * sqrt(-" << CV1_COLD('D') << ") / 2" << CV1_COLA('a') << std::endl;
+        std::cout << "  *    = -(" << CV1_COLB(poly.b) << ") / 2 * " << CV1_COLA(poly.a) << " - i * sqrt(" << CV1_COLD(-poly.delta) << ") / 2 * " << CV1_COLA(poly.a) << std::endl;
+        std::cout << "  *    = " << num_r << " / " << den << " - i * " << num_i << " / " << den << std::endl;
+        std::cout << "  *    " << CV1_COLS("= " << strs1.str()) << std::endl;
+
+        std::cout << "  * " << CV1_COLS("r2") << " = (-" << CV1_COLB('b') << " + sqrt(" << CV1_COLD('D') << ")) / 2" << CV1_COLA('a') << std::endl;
+        std::cout << "  *    = (-" << CV1_COLB('b') << " + sqrt(-" << CV1_COLD('D') << " * i^2)) / 2" << CV1_COLA('a') << std::endl;
+        std::cout << "  *    = -" << CV1_COLB('b') << " / 2" << CV1_COLA('a') << " + i * sqrt(-" << CV1_COLD('D') << ") / 2" << CV1_COLA('a') << std::endl;
+        std::cout << "  *    = -(" << CV1_COLB(poly.b) << ") / 2 * " << CV1_COLA(poly.a) << " + i * sqrt(" << CV1_COLD(-poly.delta) << ") / 2 * " << CV1_COLA(poly.a) << std::endl;
+        std::cout << "  *    = " << num_r << " / " << den << " + i * " << num_i << " / " << den << std::endl;
+        std::cout << "  *    " << CV1_COLS("= " << strs2.str()) << std::endl;
+        std::cout << "  *\n";
+    }
+
+    std::cout << "  * The equation has two complex solutions : " << CV1_COLS(strs1.str()) << " and " << CV1_COLS(strs2.str()) << std::endl;
 
 }
 
 void    Solver::solve_quadratic(bool showSteps, polynomial &poly) const {
 
     poly.delta = poly.b * poly.b - 4 * poly.a * poly.c;
+
     if (showSteps) {
+        std::cout << "  *\n";
         std::cout << "  * Let " << CV1_COLD('D') << " be the discriminant :\n";
         std::cout << "  * " << CV1_COLD('D') << " = " << CV1_COLB('b') << "^2 - 4" << CV1_COLA('a') << CV1_COLC('c') << std::endl;
         std::cout << "  *   = " << CV1_COLB(poly.b) << "^2 - 4 * " << CV1_COLA(poly.a) << " * " << CV1_COLC(poly.c) << std::endl;
         std::cout << "  *   " << CV1_COLD("= " << poly.delta) << std::endl;
+        std::cout << "  *\n";
     }
     std::cout << "  * The discriminant " << CV1_COLD('D') << " is equal to " << CV1_COLD(poly.delta) << std::endl;
  
@@ -309,7 +430,7 @@ void    Solver::solve(bool showSteps, polynomial &poly, unsigned int const poly_
             std::cout << "  * " << ((poly.c) ? "No real numbers are solution of the equation\n" : "All real numbers are solution of the equation\n");
             break;
         case 1:
-            solve_linear(poly);
+            solve_linear(showSteps, poly);
             break;
         case 2:
             solve_quadratic(showSteps, poly);

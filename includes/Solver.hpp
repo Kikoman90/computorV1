@@ -6,7 +6,7 @@
 /*   By: fsidler <fsidler@student.42.fr>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2019/02/26 12:12:07 by fsidler           #+#    #+#             */
-/*   Updated: 2019/03/05 19:56:01 by fsidler          ###   ########.fr       */
+/*   Updated: 2019/03/07 19:03:05 by fsidler          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -15,11 +15,10 @@
 
 # include <iostream>
 # include <sstream>
-# include <vector>
+# include <cstdint>
 # include <map>
-# include <cmath>
-# include <cfenv>
 
+// error threshold for floating point values
 # define CV1_EPSILON 0.0000000000001
 
 // exit program upon first error
@@ -31,12 +30,7 @@
 // display results as irreducible fractions if possible
 # define CV1_FRACTIONS true
 
-// use 32 bits floating point numbers : CV1_USE_FP
-// use doubles. 64 bits FP numbers : CV1_USE_DBL
-# define CV1_USE_FP 0x1
-# define CV1_USE_DBL 0x2
-# define CV1_MODE CV1_USE_DBL
-
+// display-related macros
 # define CV1_DEF "\033[0m"
 # define CV1_GRE "\033[32m"
 # define CV1_YEL "\033[33m"
@@ -62,6 +56,15 @@
 #  define CV1_COLS(x) x
 # endif
 
+#define CV1_F64_EXP_SHIFT 20
+#define CV1_F64_EXP_MASK 0x7ff
+#define CV1_F64_EXP_BIAS 1023
+
+struct  cv1_f64 {
+    uint32_t    low32;
+    uint32_t    high32;
+};
+
 struct  polynomial {
 	double		a;
 	double		b;
@@ -83,13 +86,13 @@ private:
     void    print_poly_info(bool showSteps, polynomial const poly, unsigned int const poly_degree) const;
 
     bool    displayable_as_fraction(double &numerator, double &denominator) const;
-    void    fraction_display(std::stringstream &strs, double numerator, double denominator) const;
+    void    fraction_display(std::stringstream &strs, double numerator, double denominator, bool space = false) const;
 
     void    case_zero(bool showSteps, polynomial &poly) const;
     void    case_positive(bool showSteps, polynomial &poly) const;
     void    case_negative(bool showSteps, polynomial &poly) const;
 
-    void    solve_linear(polynomial &poly) const;
+    void    solve_linear(bool showSteps, polynomial &poly) const;
     void    solve_quadratic(bool showSteps, polynomial &poly) const;
     
     void    solve(bool showSteps, polynomial &poly, unsigned int const poly_degree) const;
